@@ -28,8 +28,11 @@ npm install multidevice-bluetooth-heart-rate-monitor
 Here's a basic example of how to use the library:
 
 ```typescript
-import { MultiDeviceBluetoothHeartRateMonitor } from "multidevice-bluetooth-heart-rate-monitor";
-import { DeviceData } from "BluetoothHeartRateDevice";
+import {
+  MultiDeviceBluetoothHeartRateMonitor,
+  BluetoothHeartRateDevice,
+  DeviceData,
+} from "multidevice-bluetooth-heart-rate-monitor";
 
 const monitor = new MultiDeviceBluetoothHeartRateMonitor();
 
@@ -37,11 +40,11 @@ monitor.on("data", (data: DeviceData) => {
   console.log(`Heart rate for device ${data.deviceId}: ${data.heartRate}`);
 });
 
-monitor.on("deviceConnected", (deviceInfo: DeviceData) => {
+monitor.on("deviceConnected", (deviceInfo: BluetoothHeartRateDevice) => {
   console.log(`Device ceconnected: ${deviceInfo.deviceName}`);
 });
 
-monitor.on("deviceDisconnected", (deviceInfo: DeviceData) => {
+monitor.on("deviceDisconnected", (deviceInfo: BluetoothHeartRateDevice) => {
   console.log(`Device reconnected: ${deviceInfo.deviceName}`);
 });
 
