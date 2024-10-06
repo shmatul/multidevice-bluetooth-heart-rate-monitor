@@ -179,14 +179,14 @@ class MultiDeviceBluetoothHeartRateMonitor extends EventEmitter {
 
   /**
    * Handles the disconnection of a Bluetooth heart rate device.
-   * @param {string} deviceId The ID of the device that was disconnected.
+   * @param {string} peripheralId The ID of the device that was disconnected.
    * @event {BluetoothHeartRateDevice} deviceDisconnected - The device that was disconnected.
    */
-  private async handleDeviceDisconnect(deviceId: string) {
-    const device = this.devices.get(deviceId);
+  private async handleDeviceDisconnect(peripheralId: string) {
+    const device = this.devices.get(peripheralId);
     if (device) {
       this.emit("deviceDisconnected", device);
-      this.devices.delete(deviceId);
+      this.devices.delete(peripheralId);
     }
   }
 

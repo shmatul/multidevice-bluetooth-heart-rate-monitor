@@ -1,5 +1,8 @@
 import { MultiDeviceBluetoothHeartRateMonitor } from "./MultiDeviceBluetoothHeartRateMonitor";
-import { BluetoothHeartRateDevice } from "./BluetoothHeartRateDevice";
+import {
+  BluetoothHeartRateDevice,
+  DeviceData,
+} from "./BluetoothHeartRateDevice";
 import noble from "@abandonware/noble";
 
 jest.mock("@abandonware/noble", () => ({
@@ -94,7 +97,7 @@ describe("MultiDeviceBluetoothHeartRateMonitor", () => {
     (monitor as any).devices.set("test-id", mockDevice);
     const spy = jest.spyOn(monitor, "emit");
     await (monitor as any).handleDeviceDisconnect("test-id");
-    expect(spy).toHaveBeenCalledWith("deviceDisconnected", "test-id");
+    expect(spy).toHaveBeenCalledWith("deviceDisconnected", mockDevice);
     expect((monitor as any).devices.size).toBe(0);
   });
 });
