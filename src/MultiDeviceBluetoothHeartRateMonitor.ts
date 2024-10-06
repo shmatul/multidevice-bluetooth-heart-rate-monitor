@@ -10,20 +10,24 @@ class MultiDeviceBluetoothHeartRateMonitor extends EventEmitter {
   private devices: Map<string, BluetoothHeartRateDevice> = new Map();
   private isScanning: boolean = false;
   private scanInterval: NodeJS.Timeout | null = null;
-  private adapterReadyPromise: Promise<void>;
+  private adapterReadyPromise: Promise<void> | null = null;
   private adapterReadyResolver: (() => void) | null = null;
+  private initializedScanningRequest: boolean = false;
 
   /**
    * Creates a new MultiDeviceBluetoothHeartRateMonitor instance.
    */
   constructor() {
     super();
-    this.adapterReadyPromise = new Promise((resolve) => {
-      this.adapterReadyResolver = resolve;
-    });
+    this.resetAdapterReadyPromise();
     this.setupNobleListeners();
     this.setupGracefulShutdown();
     this.setupPowerManagement();
+  }
+
+  public async startScanning(): Promise<void> {
+    this.initializedScanningRequest = true;
+    await this.startScanning_DO();
   }
 
   /**
@@ -31,9 +35,9 @@ class MultiDeviceBluetoothHeartRateMonitor extends EventEmitter {
    * @returns {Promise<void>}
    * @throws {Error} If there's an issue starting the scan.
    */
-  public async startScanning(): Promise<void> {
+  public async startScanning_DO(): Promise<void> {
+    if (this.isScanning || !this.initializedScanningRequest) return;
     await this.adapterReadyPromise;
-    if (this.isScanning) return;
 
     console.log("Starting to scan for heart rate monitors...");
     try {
@@ -42,7 +46,6 @@ class MultiDeviceBluetoothHeartRateMonitor extends EventEmitter {
         true
       );
       this.isScanning = true;
-      this.emit("scanStart");
     } catch (error: unknown) {
       if (error instanceof Error) {
         this.handleScanError(error);
@@ -71,8 +74,6 @@ class MultiDeviceBluetoothHeartRateMonitor extends EventEmitter {
     try {
       await noble.stopScanningAsync();
       this.isScanning = false;
-      this.emit("scanStop");
-
       if (this.scanInterval) {
         clearInterval(this.scanInterval);
         this.scanInterval = null;
@@ -142,9 +143,7 @@ class MultiDeviceBluetoothHeartRateMonitor extends EventEmitter {
       }
       this.emit("adapterReady");
     } else {
-      this.adapterReadyPromise = new Promise((resolve) => {
-        this.adapterReadyResolver = resolve;
-      });
+      this.resetAdapterReadyPromise();
       await this.stopScanning();
     }
   }
@@ -170,10 +169,10 @@ class MultiDeviceBluetoothHeartRateMonitor extends EventEmitter {
     try {
       const device = new BluetoothHeartRateDevice(peripheral);
       this.devices.set(peripheral.id, device);
+      this.emit("deviceConnected", device);
       device.on("data", this.handleDeviceData.bind(this));
       device.on("disconnect", () => this.handleDeviceDisconnect(peripheral.id));
       await device.connect();
-      this.emit("deviceReconnected", device.getDeviceInfo());
     } catch (error) {
       console.error("Error reconnecting to peripheral:", error);
       this.emit("error", error);
@@ -229,20 +228,8 @@ class MultiDeviceBluetoothHeartRateMonitor extends EventEmitter {
    */
   private async handleWake(): Promise<void> {
     console.log("System woke up. Reinitializing...");
-    // Wait for the adapter to be ready, with a timeout
-    try {
-      await Promise.race([
-        this.adapterReadyPromise,
-        new Promise((_, reject) =>
-          setTimeout(() => reject(new Error("Adapter ready timeout")), 10000)
-        ), // 10 second timeout
-      ]);
-
-      // If we get here, the adapter is ready
+    if (this.initializedScanningRequest) {
       await this.startScanning();
-    } catch (error) {
-      console.error("Error reinitializing after wake:", error);
-      this.emit("error", new Error("Failed to reinitialize after system wake"));
     }
   }
 
@@ -301,9 +288,18 @@ class MultiDeviceBluetoothHeartRateMonitor extends EventEmitter {
     await Promise.all(disconnectionPromises);
 
     this.devices.clear();
-    noble.removeAllListeners();
 
     console.log("Cleanup process completed.");
+  }
+
+  /**
+   * Resets the adapter ready promise and resolver.
+   * @private
+   */
+  private resetAdapterReadyPromise(): void {
+    this.adapterReadyPromise = new Promise((resolve) => {
+      this.adapterReadyResolver = resolve;
+    });
   }
 }
 

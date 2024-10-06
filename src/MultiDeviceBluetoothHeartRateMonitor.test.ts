@@ -22,17 +22,80 @@ describe("MultiDeviceBluetoothHeartRateMonitor", () => {
   });
 
   describe("startScanning", () => {
+    it("shouldnt be scanning if startScannint wasn't called", async () => {
+      (monitor as any).handleStateChange("poweredOn");
+      //   await monitor.startScanning();
+      expect(noble.startScanningAsync).not.toHaveBeenCalled();
+    });
     it("should start scanning when not already scanning", async () => {
+      (monitor as any).handleStateChange("poweredOn");
       (monitor as any).isScanning = false;
       await monitor.startScanning();
       expect(noble.startScanningAsync).toHaveBeenCalledWith(["180D"], true);
     });
 
     it("should not start scanning when already scanning", async () => {
+      // Mock the adapterReadyPromise to resolve immediately
+      (monitor as any).handleStateChange("poweredOn");
+
+      // Set isScanning to true
       (monitor as any).isScanning = true;
+
+      // Call startScanning
       await monitor.startScanning();
+
+      // Expect that noble.startScanningAsync was not called
       expect(noble.startScanningAsync).not.toHaveBeenCalled();
     });
+
+    it("shouldn't start scanning if adapter is not ready", (done) => {
+      const timeout = setTimeout(() => {
+        done();
+      }, 200); // 1 second timeout
+
+      // Set isScanning to false
+      (monitor as any).isScanning = false;
+
+      // Call startScanning
+      monitor
+        .startScanning() // Return a promise, but handle it as follows
+        .then(() => {
+          // If we reach here, clear the timeout since the call completed
+          clearTimeout(timeout);
+
+          // Expect that noble.startScanningAsync was not called
+          expect(noble.startScanningAsync).not.toHaveBeenCalled();
+
+          // Mark the test as done
+          done();
+        })
+        .catch((error) => {
+          // If an error occurs, clear the timeout and fail the test
+          clearTimeout(timeout);
+          done.fail(error);
+        });
+    });
+    // it("should reusume scanning after system awake", async () => {
+    //   const startScanningSpy = jest
+    //     .spyOn(monitor, "startScanning")
+    //     .mockResolvedValue();
+    //   // Mock the adapterReadyPromise to resolve immediately
+    //   (monitor as any).handleStateChange("poweredOn");
+
+    //   // Call startScanning
+    //   await monitor.startScanning();
+
+    //   // Expect that noble.startScanningAsync was not called
+    //   expect(noble.startScanningAsync).toHaveBeenCalled();
+
+    //   await (monitor as any).handleSleep();
+
+    //   await (monitor as any).handleWake();
+
+    //   expect(startScanningSpy).toHaveBeenCalled();
+    //   // Clean up spies
+    //   startScanningSpy.mockRestore();
+    // });
   });
 
   describe("stopScanning", () => {
@@ -49,12 +112,39 @@ describe("MultiDeviceBluetoothHeartRateMonitor", () => {
     });
   });
 
-  it("should handle state change", async () => {
+  it("should handle state change and prepare for scanning", async () => {
+    // Mock startScanning method
+    const startScanningSpy = jest
+      .spyOn(monitor, "startScanning")
+      .mockResolvedValue();
+
+    // Spy on the emit method
+    const emitSpy = jest.spyOn(monitor, "emit");
+
+    // Get the stateChange callback
     const stateChangeCb = (noble.on as jest.Mock).mock.calls.find(
       (call) => call[0] === "stateChange"
     )[1];
+
+    // Call the stateChange callback with "poweredOn"
     await stateChangeCb("poweredOn");
-    expect(noble.startScanningAsync).toHaveBeenCalled();
+
+    // Expect that the adapterReadyPromise is resolved
+    await expect((monitor as any).adapterReadyPromise).resolves.toBeUndefined();
+
+    // Expect that the "adapterReady" event is emitted
+    expect(emitSpy).toHaveBeenCalledWith("adapterReady");
+
+    // Verify that noble.startScanningAsync was not called directly
+    expect(noble.startScanningAsync).not.toHaveBeenCalled();
+
+    // Verify that startScanning method can now be called without waiting
+    await monitor.startScanning();
+    expect(startScanningSpy).toHaveBeenCalled();
+
+    // Clean up spies
+    startScanningSpy.mockRestore();
+    emitSpy.mockRestore();
   });
 
   it("should handle device discovery", async () => {
@@ -68,6 +158,25 @@ describe("MultiDeviceBluetoothHeartRateMonitor", () => {
     )[1];
     await discoveryCb(mockPeripheral);
     expect(BluetoothHeartRateDevice).toHaveBeenCalledWith(mockPeripheral);
+  });
+
+  it("should start scanning after state changes to poweredOn", async () => {
+    // Get the stateChange callback
+    const stateChangeCb = (noble.on as jest.Mock).mock.calls.find(
+      (call) => call[0] === "stateChange"
+    )[1];
+
+    // Start scanning in a separate promise
+    const scanningPromise = monitor.startScanning();
+
+    // Simulate state change to poweredOn
+    await stateChangeCb("poweredOn");
+
+    // Wait for scanning to complete
+    await scanningPromise;
+
+    // Verify that noble.startScanningAsync was called
+    expect(noble.startScanningAsync).toHaveBeenCalled();
   });
 
   it("should get connected devices", () => {

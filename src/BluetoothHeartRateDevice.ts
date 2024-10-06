@@ -20,9 +20,9 @@ class BluetoothHeartRateDevice extends EventEmitter {
   private static readonly MANUFACTURER_NAME_CHARACTERISTIC_UUID = "2A29";
   private static readonly SERIAL_NUMBER_CHARACTERISTIC_UUID = "2A25";
 
-  private peripheral: Peripheral;
-  private deviceData: DeviceData;
   private rssIInterval: NodeJS.Timeout | null = null;
+  public peripheral: Peripheral;
+  public deviceData: DeviceData;
 
   constructor(peripheral: Peripheral) {
     super();
