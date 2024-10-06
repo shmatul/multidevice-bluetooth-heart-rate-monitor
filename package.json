@@ -12,10 +12,11 @@
     "test": "jest --config jest.config.js",
     "test:watch": "jest --config jest.config.js --watch",
     "docs": "typedoc --options ./typedoc.json",
-    "prepublishOnly": "npm run docs"
+    "prepublishOnly": "npm run build && npm run test && npm run docs",
+    "release": "standard-version"
   },
   "engines": {
-    "node": ">=12.0.0"
+    "node": ">=14.0.0"
   },
   "repository": {
     "type": "git",
@@ -42,6 +43,7 @@
     "@types/jest": "^29.5.13",
     "@types/node": "^22.7.4",
     "jest": "^29.7.0",
+    "standard-version": "^9.5.0",
     "ts-jest": "^29.2.5",
     "typedoc": "^0.26.8",
     "typescript": "^5.6.2"
