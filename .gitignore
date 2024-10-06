@@ -5,7 +5,7 @@ node_modules/
 dist/
 
 # Documentation output
-docs/
+# docs/
 
 # Environment variables
 .env
