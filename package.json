@@ -1,6 +1,6 @@
 {
   "name": "multidevice-bluetooth-heart-rate-monitor",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "A TypeScript library for managing multiple Bluetooth heart rate monitor devices",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
