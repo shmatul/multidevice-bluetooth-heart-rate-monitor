@@ -66,10 +66,12 @@ The main class for managing multiple heart rate monitor devices.
 #### Events
 
 - `'data'`: Emitted when heart rate data is received from a device.
-- `'deviceReconnected'`: Emitted when a known device is reconnected.
+- `'deviceConnected'`: Emitted when a known device is reconnected.
+- `'deviceDisconnected'`: Emitted when a known device is reconnected.
 - `'scanStart'`: Emitted when scanning starts.
 - `'scanStop'`: Emitted when scanning stops.
 - `'error'`: Emitted when an error occurs.
+- `'adapterReady'`: Emitted when the bluetooth adapter is ready.
 
 ### `BluetoothHeartRateDevice`
 
