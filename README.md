@@ -5,10 +5,9 @@ A TypeScript library for managing multiple Bluetooth heart rate monitor devices 
 Documentation:
 [![Documentation](https://img.shields.io/badge/documentation-view-blue)](https://shmatul.github.io/multidevice-bluetooth-heart-rate-monitor/)
 
-
 This package is based on the following:
-- [@abandonware/noble](https://www.npmjs.com/package/@abandonware/noble)
 
+- [@abandonware/noble](https://www.npmjs.com/package/@abandonware/noble)
 
 ## Features
 
@@ -30,18 +29,19 @@ Here's a basic example of how to use the library:
 
 ```typescript
 import { MultiDeviceBluetoothHeartRateMonitor } from "multidevice-bluetooth-heart-rate-monitor";
+import { DeviceData } from "BluetoothHeartRateDevice";
 
 const monitor = new MultiDeviceBluetoothHeartRateMonitor();
 
-monitor.on("data", (data) => {
+monitor.on("data", (data: DeviceData) => {
   console.log(`Heart rate for device ${data.deviceId}: ${data.heartRate}`);
 });
 
-monitor.on("deviceConnected", (deviceInfo) => {
+monitor.on("deviceConnected", (deviceInfo: DeviceData) => {
   console.log(`Device ceconnected: ${deviceInfo.deviceName}`);
 });
 
-monitor.on("deviceDisconnected", (deviceInfo) => {
+monitor.on("deviceDisconnected", (deviceInfo: DeviceData) => {
   console.log(`Device reconnected: ${deviceInfo.deviceName}`);
 });
 
