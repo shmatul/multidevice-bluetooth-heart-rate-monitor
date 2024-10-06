@@ -131,6 +131,7 @@ class MultiDeviceBluetoothHeartRateMonitor extends EventEmitter {
    * @param {string} state The new state of the adapter.
    * @returns {Promise<void>}
    * @event {string} adapterStateChange - When the adapter state changes.
+   * @event {string} adapterReady - When the bluetooth adapter is ready.
    */
   private async handleStateChange(state: string): Promise<void> {
     console.log(`Bluetooth adapter state changed to: ${state}`);
@@ -164,6 +165,7 @@ class MultiDeviceBluetoothHeartRateMonitor extends EventEmitter {
   /**
    * Handles the discovery of a new bluetooth peripheral device.
    * @param {Peripheral} peripheral The noble bluetooth discovered peripheral device.
+   * @event {BluetoothHeartRateDevice} deviceConnected - The data received from the discovered device.
    */
   private async handleDiscoveryData(peripheral: Peripheral): Promise<void> {
     try {
