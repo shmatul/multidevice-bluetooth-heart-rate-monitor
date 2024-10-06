@@ -2,11 +2,13 @@
 
 A TypeScript library for managing multiple Bluetooth heart rate monitor devices simultaneously.
 
+Documentation:
+[![Documentation](https://img.shields.io/badge/documentation-view-blue)](https://shmatul.github.io/multidevice-bluetooth-heart-rate-monitor/)
+
+
 This package is based on the following:
 - [@abandonware/noble](https://www.npmjs.com/package/@abandonware/noble)
 
-
-[![Documentation](https://img.shields.io/badge/documentation-view-blue)](https://shmatul.github.io/multidevice-bluetooth-heart-rate-monitor/)
 
 ## Features
 
