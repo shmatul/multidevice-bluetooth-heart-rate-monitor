@@ -35,8 +35,8 @@ monitor.on("data", (data) => {
   console.log(`Heart rate for device ${data.deviceId}: ${data.heartRate}`);
 });
 
-monitor.on("deviceReconnected", (deviceInfo) => {
-  console.log(`Device reconnected: ${deviceInfo.deviceName}`);
+monitor.on("deviceConnected", (deviceInfo) => {
+  console.log(`Device ceconnected: ${deviceInfo.deviceName}`);
 });
 
 monitor.on("deviceDisconnected", (deviceInfo) => {
