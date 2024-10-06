@@ -10,12 +10,17 @@ class MultiDeviceBluetoothHeartRateMonitor extends EventEmitter {
   private devices: Map<string, BluetoothHeartRateDevice> = new Map();
   private isScanning: boolean = false;
   private scanInterval: NodeJS.Timeout | null = null;
+  private adapterReadyPromise: Promise<void>;
+  private adapterReadyResolver: (() => void) | null = null;
 
   /**
    * Creates a new MultiDeviceBluetoothHeartRateMonitor instance.
    */
   constructor() {
     super();
+    this.adapterReadyPromise = new Promise((resolve) => {
+      this.adapterReadyResolver = resolve;
+    });
     this.setupNobleListeners();
     this.setupGracefulShutdown();
     this.setupPowerManagement();
@@ -27,6 +32,7 @@ class MultiDeviceBluetoothHeartRateMonitor extends EventEmitter {
    * @throws {Error} If there's an issue starting the scan.
    */
   public async startScanning(): Promise<void> {
+    await this.adapterReadyPromise;
     if (this.isScanning) return;
 
     console.log("Starting to scan for heart rate monitors...");
@@ -130,9 +136,15 @@ class MultiDeviceBluetoothHeartRateMonitor extends EventEmitter {
     this.emit("adapterStateChange", state);
 
     if (state === "poweredOn") {
-      await this.startScanning();
+      if (this.adapterReadyResolver) {
+        this.adapterReadyResolver();
+        this.adapterReadyResolver = null;
+      }
       this.emit("adapterReady");
     } else {
+      this.adapterReadyPromise = new Promise((resolve) => {
+        this.adapterReadyResolver = resolve;
+      });
       await this.stopScanning();
     }
   }
@@ -217,7 +229,21 @@ class MultiDeviceBluetoothHeartRateMonitor extends EventEmitter {
    */
   private async handleWake(): Promise<void> {
     console.log("System woke up. Reinitializing...");
-    await this.startScanning();
+    // Wait for the adapter to be ready, with a timeout
+    try {
+      await Promise.race([
+        this.adapterReadyPromise,
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("Adapter ready timeout")), 10000)
+        ), // 10 second timeout
+      ]);
+
+      // If we get here, the adapter is ready
+      await this.startScanning();
+    } catch (error) {
+      console.error("Error reinitializing after wake:", error);
+      this.emit("error", new Error("Failed to reinitialize after system wake"));
+    }
   }
 
   /**
