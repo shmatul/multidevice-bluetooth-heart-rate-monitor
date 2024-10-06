@@ -35,7 +35,7 @@ class MultiDeviceBluetoothHeartRateMonitor extends EventEmitter {
    * @returns {Promise<void>}
    * @throws {Error} If there's an issue starting the scan.
    */
-  public async startScanning_DO(): Promise<void> {
+  private async startScanning_DO(): Promise<void> {
     if (this.isScanning || !this.initializedScanningRequest) return;
     await this.adapterReadyPromise;
 
