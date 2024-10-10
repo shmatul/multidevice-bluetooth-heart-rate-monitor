@@ -12,6 +12,6 @@
     "types": ["node", "jest"],
     "moduleResolution": "node"
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "test.ts"],
   "exclude": ["node_modules", "**/*.spec.ts"]
 }

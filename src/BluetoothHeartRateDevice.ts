@@ -21,11 +21,15 @@ class BluetoothHeartRateDevice extends EventEmitter {
   private static readonly SERIAL_NUMBER_CHARACTERISTIC_UUID = "2A25";
 
   private rssIInterval: NodeJS.Timeout | null = null;
+  private lastSeen: number = Date.now();
+  private connecting: boolean = false;
   public peripheral: Peripheral;
   public deviceData: DeviceData;
+  private boundHandleDisconnect: () => void;
 
   constructor(peripheral: Peripheral) {
     super();
+    this.boundHandleDisconnect = this.handleDisconnect.bind(this);
     this.peripheral = peripheral;
     this.deviceData = {
       heartRate: 0,
@@ -33,6 +37,18 @@ class BluetoothHeartRateDevice extends EventEmitter {
       deviceName: peripheral.advertisement?.localName || "Unknown Device",
       rssi: 0,
     };
+  }
+
+  public setLastSeen() {
+    this.lastSeen = Date.now();
+  }
+
+  public getLastSeen() {
+    return this.lastSeen;
+  }
+
+  public isConnecting() {
+    return this.connecting;
   }
 
   public setRSSI() {
@@ -57,19 +73,45 @@ class BluetoothHeartRateDevice extends EventEmitter {
     }
   }
 
-  public async connect(): Promise<void> {
+  public isConnected(): boolean {
+    return this.peripheral.state === "connected";
+  }
+
+  private removeDisconnectListener() {
+    // Use the stored bound method when removing the listener
+    this.peripheral.removeListener("disconnect", this.boundHandleDisconnect);
+  }
+
+  private addDisconnectListener() {
+    // Use the stored bound method when adding the listener
+    this.peripheral.once("disconnect", this.boundHandleDisconnect);
+  }
+
+  public async connect(options: { forceAwake?: boolean } = {}): Promise<void> {
+    if (options.forceAwake && this.isConnected()) {
+      this.removeDisconnectListener();
+      await this.peripheral.disconnectAsync();
+    }
+    if ((this.connecting || this.isConnected()) && !options.forceAwake) {
+      return;
+    }
+    this.connecting = true;
     await this.peripheral.connectAsync();
+    this.emit("connected", this.deviceData.deviceId);
     this.rssIInterval = setInterval(async () => {
       this.peripheral.updateRssiAsync();
       this.setRSSI();
     }, 1000);
-    this.peripheral.once("disconnect", this.handleDisconnect.bind(this));
+
+    this.addDisconnectListener();
 
     const { characteristics } =
       await this.peripheral.discoverAllServicesAndCharacteristicsAsync();
 
     await this.setupCharacteristics(characteristics);
     await this.readDeviceInfo(characteristics);
+
+    this.connecting = false;
   }
 
   public async disconnect(): Promise<void> {
@@ -211,6 +253,7 @@ class BluetoothHeartRateDevice extends EventEmitter {
       this.rssIInterval = null;
     }
     this.emit("disconnect", this.deviceData.deviceId);
+    this.removeDisconnectListener();
   }
 }
 

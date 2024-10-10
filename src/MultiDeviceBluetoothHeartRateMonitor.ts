@@ -6,13 +6,17 @@ import {
 } from "./BluetoothHeartRateDevice";
 
 class MultiDeviceBluetoothHeartRateMonitor extends EventEmitter {
+  public devices: Map<string, BluetoothHeartRateDevice> = new Map();
+  public discoveredDevices: Map<string, BluetoothHeartRateDevice> = new Map();
   private static readonly HRM_SERVICE_UUID = "180D";
-  private devices: Map<string, BluetoothHeartRateDevice> = new Map();
   private isScanning: boolean = false;
+  private pendingScanRequest: boolean = false;
   private scanInterval: NodeJS.Timeout | null = null;
   private adapterReadyPromise: Promise<void> | null = null;
   private adapterReadyResolver: (() => void) | null = null;
   private initializedScanningRequest: boolean = false;
+  private DISCOVERED_DEVICE_TIMEOUT = 5000;
+  private cleanupOldDiscoveredDevicesInterval: NodeJS.Timeout | null = null;
 
   /**
    * Creates a new MultiDeviceBluetoothHeartRateMonitor instance.
@@ -23,6 +27,7 @@ class MultiDeviceBluetoothHeartRateMonitor extends EventEmitter {
     this.setupNobleListeners();
     this.setupGracefulShutdown();
     this.setupPowerManagement();
+    this.cleanupOldDevices();
   }
 
   public async startScanning(): Promise<void> {
@@ -36,7 +41,13 @@ class MultiDeviceBluetoothHeartRateMonitor extends EventEmitter {
    * @throws {Error} If there's an issue starting the scan.
    */
   private async startScanning_DO(): Promise<void> {
-    if (this.isScanning || !this.initializedScanningRequest) return;
+    if (
+      this.isScanning ||
+      !this.initializedScanningRequest ||
+      this.pendingScanRequest
+    )
+      return;
+    this.pendingScanRequest = true;
     await this.adapterReadyPromise;
 
     console.log("Starting to scan for heart rate monitors...");
@@ -46,6 +57,7 @@ class MultiDeviceBluetoothHeartRateMonitor extends EventEmitter {
         true
       );
       this.isScanning = true;
+      this.pendingScanRequest = false;
     } catch (error: unknown) {
       if (error instanceof Error) {
         this.handleScanError(error);
@@ -59,6 +71,7 @@ class MultiDeviceBluetoothHeartRateMonitor extends EventEmitter {
           new Error("Unknown error occurred while starting the scan")
         );
       }
+      this.pendingScanRequest = false;
     }
   }
 
@@ -74,6 +87,7 @@ class MultiDeviceBluetoothHeartRateMonitor extends EventEmitter {
     try {
       await noble.stopScanningAsync();
       this.isScanning = false;
+      this.pendingScanRequest = false;
       if (this.scanInterval) {
         clearInterval(this.scanInterval);
         this.scanInterval = null;
@@ -89,6 +103,22 @@ class MultiDeviceBluetoothHeartRateMonitor extends EventEmitter {
    */
   public getConnectedDevices(): BluetoothHeartRateDevice[] {
     return Array.from(this.devices.values());
+  }
+
+  /**
+   * Returns an array of discovered Bluetooth heart rate devices.
+   * @returns {BluetoothHeartRateDevice[]} An array of discovered devices.
+   */
+  public getDiscoveredDevices(): BluetoothHeartRateDevice[] {
+    return Array.from(this.discoveredDevices.values());
+  }
+
+  /**
+   * Returns an array of active Bluetooth heart rate devices.
+   * @returns {BluetoothHeartRateDevice[]} An array of active devices.
+   */
+  public getActiveDevices(): BluetoothHeartRateDevice[] {
+    return Array.from(this.discoveredDevices.values());
   }
 
   /**
@@ -137,16 +167,56 @@ class MultiDeviceBluetoothHeartRateMonitor extends EventEmitter {
     console.log(`Bluetooth adapter state changed to: ${state}`);
     this.emit("adapterStateChange", state);
 
-    if (state === "poweredOn") {
-      if (this.adapterReadyResolver) {
-        this.adapterReadyResolver();
-        this.adapterReadyResolver = null;
+    try {
+      if (state === "poweredOn") {
+        if (this.adapterReadyResolver) {
+          this.adapterReadyResolver();
+        }
+        this.emit("adapterReady");
+        if (
+          !this.pendingScanRequest &&
+          !this.isScanning &&
+          this.initializedScanningRequest
+        ) {
+          this.awakeWorkingMonitors();
+          this.startScanning_DO();
+        }
+        this.resetAdapterReadyPromise();
+      } else {
+        this.resetAdapterReadyPromise();
+        await this.stopScanning();
       }
-      this.emit("adapterReady");
-    } else {
-      this.resetAdapterReadyPromise();
-      await this.stopScanning();
+    } catch (error) {
+      console.error("Error handling state change:", error);
+      this.emit("error", error);
     }
+  }
+
+  private awakeWorkingMonitors() {
+    for (const device of this.devices.values()) {
+      device.connect({ forceAwake: true });
+    }
+  }
+
+  /**
+   * Cleans up old discovered devices that are no longer discoverable.
+   * @private
+   * @returns {void}
+   */
+  private cleanupOldDevices() {
+    this.cleanupOldDiscoveredDevicesInterval = setInterval(() => {
+      const now = Date.now();
+      for (const [uuid, device] of this.discoveredDevices.entries()) {
+        if (
+          !device.isConnecting() &&
+          now - device.getLastSeen() > this.DISCOVERED_DEVICE_TIMEOUT
+        ) {
+          console.log(`Device ${uuid} no longer discoverable, removing...`);
+          this.discoveredDevices.delete(uuid);
+          console.log(`Discovered devices: ${this.discoveredDevices.size}`);
+        }
+      }
+    }, this.DISCOVERED_DEVICE_TIMEOUT);
   }
 
   /**
@@ -155,26 +225,39 @@ class MultiDeviceBluetoothHeartRateMonitor extends EventEmitter {
    */
   private async handleDiscovery(peripheral: Peripheral): Promise<void> {
     if (peripheral.connectable) {
-      if (!this.devices.has(peripheral.id)) {
+      const workingDevice = this.devices.get(peripheral.id);
+      const discoveredDevice = this.discoveredDevices.get(peripheral.id);
+      if (discoveredDevice) {
+        discoveredDevice.setLastSeen();
+      } else if (workingDevice && !workingDevice.isConnected()) {
+        // .. generally that should not happen since we are already connected, but just in case we missed the disconnect event let's reconnect:
+        try {
+          await workingDevice.connect();
+        } catch (error) {
+          console.error("Error reconnecting to peripheral:", error);
+          this.emit("error", error);
+        }
+      } else {
         console.log(`Discovered device: ${peripheral.advertisement.localName}`);
         this.handleDiscoveryData(peripheral);
       }
+    } else {
+      console.log(
+        `Discovered non-connectable device: ${peripheral.advertisement.localName}`
+      );
     }
   }
 
   /**
    * Handles the discovery of a new bluetooth peripheral device.
    * @param {Peripheral} peripheral The noble bluetooth discovered peripheral device.
-   * @event {BluetoothHeartRateDevice} deviceConnected - The data received from the discovered device.
+   * @event {BluetoothHeartRateDevice} deviceDiscovered - The data received from the discovered device.
    */
   private async handleDiscoveryData(peripheral: Peripheral): Promise<void> {
     try {
       const device = new BluetoothHeartRateDevice(peripheral);
-      this.devices.set(peripheral.id, device);
-      this.emit("deviceConnected", device);
-      device.on("data", this.handleDeviceData.bind(this));
-      device.on("disconnect", () => this.handleDeviceDisconnect(peripheral.id));
-      await device.connect();
+      this.discoveredDevices.set(peripheral.id, device);
+      this.emit("deviceDiscovered", device);
     } catch (error) {
       console.error("Error reconnecting to peripheral:", error);
       this.emit("error", error);
@@ -190,6 +273,19 @@ class MultiDeviceBluetoothHeartRateMonitor extends EventEmitter {
     this.emit("data", { ...data, timestamp: new Date().toISOString() });
   }
 
+  private async handleDeviceConnect(peripheralId: string) {
+    const workingDevice = this.devices.get(peripheralId);
+    const pendingDevice = this.discoveredDevices.get(peripheralId);
+    if (workingDevice) {
+      console.log(`Device ${peripheralId} is already marked connected.`);
+    } else if (pendingDevice) {
+      this.devices.set(pendingDevice.getDeviceInfo().deviceId, pendingDevice);
+      this.discoveredDevices.delete(pendingDevice.getDeviceInfo().deviceId);
+      pendingDevice.on("data", this.handleDeviceData.bind(this));
+    }
+    this.emit("deviceConnected", pendingDevice);
+  }
+
   /**
    * Handles the disconnection of a Bluetooth heart rate device.
    * @param {string} peripheralId The ID of the device that was disconnected.
@@ -201,6 +297,31 @@ class MultiDeviceBluetoothHeartRateMonitor extends EventEmitter {
       this.emit("deviceDisconnected", device);
       this.devices.delete(peripheralId);
     }
+  }
+
+  /**
+   * Connects to a Bluetooth heart rate device.
+   * @param {BluetoothHeartRateDevice} device The device to connect to.
+   * @event {BluetoothHeartRateDevice} deviceConnected - The device that was disconnected.
+   * @returns {void | Error}
+   */
+  public async connectDevice(device: BluetoothHeartRateDevice): Promise<void> {
+    return new Promise(async (resolve, reject) => {
+      const discoveredDevice = this.discoveredDevices.get(
+        device.getDeviceInfo().deviceId
+      );
+      if (discoveredDevice) {
+        try {
+          device.once("connected", this.handleDeviceConnect.bind(this));
+          device.once("disconnect", this.handleDeviceDisconnect.bind(this));
+          await device.connect();
+        } catch (error) {
+          reject(error);
+        }
+      } else {
+        reject(new Error("Device not found in discovered devices"));
+      }
+    });
   }
 
   /**
@@ -271,25 +392,30 @@ class MultiDeviceBluetoothHeartRateMonitor extends EventEmitter {
 
     await this.stopScanning();
 
-    const disconnectionPromises = Array.from(this.devices.values()).map(
-      async (device) => {
-        try {
-          await device.disconnect();
-          console.log(
-            `Disconnected device: ${device.getDeviceInfo().deviceId}`
-          );
-        } catch (error) {
-          console.error(
-            `Error disconnecting device ${device.getDeviceInfo().deviceId}:`,
-            error
-          );
-        }
+    const allDevices = [
+      ...Array.from(this.discoveredDevices.values()),
+      ...Array.from(this.devices.values()),
+    ];
+    const disconnectionPromises = Array.from(allDevices).map(async (device) => {
+      try {
+        await device.disconnect();
+      } catch (error) {
+        console.error(
+          `Error disconnecting device ${device.getDeviceInfo().deviceId}:`,
+          error
+        );
       }
-    );
+    });
 
     await Promise.all(disconnectionPromises);
 
+    this.discoveredDevices.clear();
     this.devices.clear();
+
+    if (this.cleanupOldDiscoveredDevicesInterval) {
+      clearInterval(this.cleanupOldDiscoveredDevicesInterval);
+      this.cleanupOldDiscoveredDevicesInterval = null;
+    }
 
     console.log("Cleanup process completed.");
   }

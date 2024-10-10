@@ -75,27 +75,6 @@ describe("MultiDeviceBluetoothHeartRateMonitor", () => {
           done.fail(error);
         });
     });
-    // it("should reusume scanning after system awake", async () => {
-    //   const startScanningSpy = jest
-    //     .spyOn(monitor, "startScanning")
-    //     .mockResolvedValue();
-    //   // Mock the adapterReadyPromise to resolve immediately
-    //   (monitor as any).handleStateChange("poweredOn");
-
-    //   // Call startScanning
-    //   await monitor.startScanning();
-
-    //   // Expect that noble.startScanningAsync was not called
-    //   expect(noble.startScanningAsync).toHaveBeenCalled();
-
-    //   await (monitor as any).handleSleep();
-
-    //   await (monitor as any).handleWake();
-
-    //   expect(startScanningSpy).toHaveBeenCalled();
-    //   // Clean up spies
-    //   startScanningSpy.mockRestore();
-    // });
   });
 
   describe("stopScanning", () => {

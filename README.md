@@ -40,15 +40,44 @@ monitor.on("data", (data: DeviceData) => {
   console.log(`Heart rate for device ${data.deviceId}: ${data.heartRate}`);
 });
 
-monitor.on("deviceConnected", (deviceInfo: BluetoothHeartRateDevice) => {
-  console.log(`Device ceconnected: ${deviceInfo.deviceName}`);
+monitor.on("deviceDiscovered", async (device: BluetoothHeartRateDevice) => {
+  console.log(`New device discovered: ${device.getDeviceInfo().deviceId}`);
 });
 
-monitor.on("deviceDisconnected", (deviceInfo: BluetoothHeartRateDevice) => {
-  console.log(`Device reconnected: ${deviceInfo.deviceName}`);
+monitor.on("deviceConnected", (device: BluetoothHeartRateDevice) => {
+  console.log(`Device connected: ${device.getDeviceInfo().deviceId}`);
+});
+
+monitor.on("deviceDisconnected", (device: BluetoothHeartRateDevice) => {
+  console.log(`Device disconnected: ${device.getDeviceInfo().deviceId}`);
+});
+
+monitor.on("adapterStateChange", (state: string) => {
+  console.log(`Bluetooth adapter state changed: ${state}`);
 });
 
 monitor.startScanning();
+
+const discoveredDevicesSonar = async () => {
+  setInterval(async () => {
+    const discoveredDevices = monitor.getDiscoveredDevices();
+    discoveredDevices.forEach((device) => {
+      console.log(
+        `Pending connection device: ${device.getDeviceInfo().deviceId} (${
+          device.getDeviceInfo().deviceName
+        })`
+      );
+      // try {
+      //   console.log("connecting to device...");
+      //   await monitor.connectDevice(device);
+      // } catch (error) {
+      //   console.error(error);
+      // }
+    });
+  }, 3000);
+};
+
+discoveredDevicesSonar();
 ```
 
 ## API Reference
@@ -61,10 +90,13 @@ The main class for managing multiple heart rate monitor devices.
 
 - `startScanning()`: Start scanning for Bluetooth heart rate monitors.
 - `stopScanning()`: Stop scanning for devices.
+- `getDiscoveredDevices()`: Get an array of currently discovered devices.
 - `getConnectedDevices()`: Get an array of currently connected devices.
+- `connectDevice(DeviceData)`: Connect a discovered device.
 
 #### Events
 
+- `'deviceDiscovered'`: Emitted when a new device is discovered.
 - `'data'`: Emitted when heart rate data is received from a device.
 - `'deviceConnected'`: Emitted when a known device is reconnected.
 - `'deviceDisconnected'`: Emitted when a known device is reconnected.
@@ -79,9 +111,8 @@ Represents a single Bluetooth heart rate monitor device.
 
 #### Methods
 
-- `connect()`: Connect to the device.
-- `disconnect()`: Disconnect from the device.
 - `getDeviceInfo()`: Get information about the device.
+- `disconnect()`: Disconnect from the device.
 
 ## Contributing
 
