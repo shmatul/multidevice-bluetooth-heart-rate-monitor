@@ -45,8 +45,9 @@ class MultiDeviceBluetoothHeartRateMonitor extends EventEmitter {
       this.isScanning ||
       !this.initializedScanningRequest ||
       this.pendingScanRequest
-    )
+    ) {
       return;
+    }
     this.pendingScanRequest = true;
     await this.adapterReadyPromise;
 
