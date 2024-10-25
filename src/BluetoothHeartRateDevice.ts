@@ -87,13 +87,15 @@ class BluetoothHeartRateDevice extends EventEmitter {
     this.peripheral.once("disconnect", this.boundHandleDisconnect);
   }
 
-  public async connect(options: { forceAwake?: boolean } = {}): Promise<void> {
+  public async connect(
+    options: { forceAwake?: boolean } = {}
+  ): Promise<boolean> {
     if (options.forceAwake && this.isConnected()) {
       this.removeDisconnectListener();
       await this.peripheral.disconnectAsync();
     }
     if ((this.connecting || this.isConnected()) && !options.forceAwake) {
-      return;
+      return false;
     }
     this.connecting = true;
     await this.peripheral.connectAsync();
@@ -112,6 +114,7 @@ class BluetoothHeartRateDevice extends EventEmitter {
     await this.readDeviceInfo(characteristics);
 
     this.connecting = false;
+    return true;
   }
 
   public async disconnect(): Promise<void> {

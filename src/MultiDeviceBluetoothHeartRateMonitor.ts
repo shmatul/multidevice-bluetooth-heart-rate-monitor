@@ -306,7 +306,9 @@ class MultiDeviceBluetoothHeartRateMonitor extends EventEmitter {
    * @event {BluetoothHeartRateDevice} deviceConnected - The device that was disconnected.
    * @returns {void | Error}
    */
-  public async connectDevice(device: BluetoothHeartRateDevice): Promise<void> {
+  public async connectDevice(
+    device: BluetoothHeartRateDevice
+  ): Promise<boolean> {
     return new Promise(async (resolve, reject) => {
       const discoveredDevice = this.discoveredDevices.get(
         device.getDeviceInfo().deviceId
@@ -316,6 +318,8 @@ class MultiDeviceBluetoothHeartRateMonitor extends EventEmitter {
           device.once("connected", this.handleDeviceConnect.bind(this));
           device.once("disconnect", this.handleDeviceDisconnect.bind(this));
           await device.connect();
+          const deviceConnection = await device.connect();
+          return resolve(deviceConnection);
         } catch (error) {
           reject(error);
         }
