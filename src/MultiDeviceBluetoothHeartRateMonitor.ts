@@ -317,7 +317,6 @@ class MultiDeviceBluetoothHeartRateMonitor extends EventEmitter {
         try {
           device.once("connected", this.handleDeviceConnect.bind(this));
           device.once("disconnect", this.handleDeviceDisconnect.bind(this));
-          await device.connect();
           const deviceConnection = await device.connect();
           return resolve(deviceConnection);
         } catch (error) {
