@@ -203,6 +203,7 @@ class MultiDeviceBluetoothHeartRateMonitor extends EventEmitter {
    * Cleans up old discovered devices that are no longer discoverable.
    * @private
    * @returns {void}
+   * @event {BluetoothHeartRateDevice} discoveredDeviceLost - The discovered device that is being removed.
    */
   private cleanupOldDevices() {
     this.cleanupOldDiscoveredDevicesInterval = setInterval(() => {
@@ -212,9 +213,9 @@ class MultiDeviceBluetoothHeartRateMonitor extends EventEmitter {
           !device.isConnecting() &&
           now - device.getLastSeen() > this.DISCOVERED_DEVICE_TIMEOUT
         ) {
+          this.emit("discoveredDeviceLost", device);
           console.log(`Device ${uuid} no longer discoverable, removing...`);
           this.discoveredDevices.delete(uuid);
-          console.log(`Discovered devices: ${this.discoveredDevices.size}`);
         }
       }
     }, this.DISCOVERED_DEVICE_TIMEOUT);
