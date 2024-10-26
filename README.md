@@ -52,30 +52,21 @@ monitor.on("deviceDisconnected", (device: BluetoothHeartRateDevice) => {
   console.log(`Device disconnected: ${device.getDeviceInfo().deviceId}`);
 });
 
+monitor.on("deviceDiscovered", (device: BluetoothHeartRateDevice) => {
+  console.log(`Device discovered: ${device.getDeviceInfo().deviceId}`);
+  try {
+    console.log("connecting to device...");
+    await monitor.connectDevice(device);
+  } catch (error) {
+    console.error(error);
+  }
+});
+
 monitor.on("adapterStateChange", (state: string) => {
   console.log(`Bluetooth adapter state changed: ${state}`);
 });
 
 monitor.startScanning();
-
-const discoveredDevicesSonar = async () => {
-  setInterval(async () => {
-    const discoveredDevices = monitor.getDiscoveredDevices();
-    discoveredDevices.forEach((device) => {
-      console.log(
-        `Pending connection device: ${device.getDeviceInfo().deviceId} (${
-          device.getDeviceInfo().deviceName
-        })`
-      );
-      // try {
-      //   console.log("connecting to device...");
-      //   await monitor.connectDevice(device);
-      // } catch (error) {
-      //   console.error(error);
-      // }
-    });
-  }, 3000);
-};
 
 discoveredDevicesSonar();
 ```
@@ -97,6 +88,7 @@ The main class for managing multiple heart rate monitor devices.
 #### Events
 
 - `'deviceDiscovered'`: Emitted when a new device is discovered.
+- `'discoveredDeviceLost'`: Emitted when a discovered device isn't available anymore.
 - `'data'`: Emitted when heart rate data is received from a device.
 - `'deviceConnected'`: Emitted when a known device is reconnected.
 - `'deviceDisconnected'`: Emitted when a known device is reconnected.
