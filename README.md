@@ -98,6 +98,7 @@ Represents a single Bluetooth heart rate monitor device.
 #### Methods
 
 - `getDeviceInfo()`: Get information about the device.
+- `connect()`: Connects to a device.
 - `disconnect()`: Disconnect from the device.
 
 ## Contributing
