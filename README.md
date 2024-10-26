@@ -40,10 +40,6 @@ monitor.on("data", (data: DeviceData) => {
   console.log(`Heart rate for device ${data.deviceId}: ${data.heartRate}`);
 });
 
-monitor.on("deviceDiscovered", async (device: BluetoothHeartRateDevice) => {
-  console.log(`New device discovered: ${device.getDeviceInfo().deviceId}`);
-});
-
 monitor.on("deviceConnected", (device: BluetoothHeartRateDevice) => {
   console.log(`Device connected: ${device.getDeviceInfo().deviceId}`);
 });
