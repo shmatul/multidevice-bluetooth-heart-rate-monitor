@@ -63,8 +63,6 @@ monitor.on("adapterStateChange", (state: string) => {
 });
 
 monitor.startScanning();
-
-discoveredDevicesSonar();
 ```
 
 ## API Reference
