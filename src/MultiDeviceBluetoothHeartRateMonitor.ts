@@ -329,6 +329,20 @@ class MultiDeviceBluetoothHeartRateMonitor extends EventEmitter {
     });
   }
 
+  public async disconnectDeviceId(deviceId: string): Promise<void> {
+    try {
+      const device = this.devices.get(deviceId);
+      if (device) {
+        await device.disconnect();
+      } else {
+        throw new Error(`Device ${deviceId} not found in connected devices`);
+      }
+    } catch (error) {
+      console.error(`Error disconnecting device ${deviceId}:`, error);
+      this.emit("error", error);
+    }
+  }
+
   /**
    * Sets up power management event listeners for the system.
    * @private

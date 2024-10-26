@@ -78,6 +78,7 @@ The main class for managing multiple heart rate monitor devices.
 - `getDiscoveredDevices()`: Get an array of currently discovered devices.
 - `getConnectedDevices()`: Get an array of currently connected devices.
 - `connectDevice(DeviceData)`: Connect a discovered device.
+- `disconnectDeviceId(deviceId)`: Disconnected a device by id.
 
 #### Events
 
