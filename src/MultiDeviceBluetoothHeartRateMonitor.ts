@@ -231,6 +231,7 @@ class MultiDeviceBluetoothHeartRateMonitor extends EventEmitter {
       const discoveredDevice = this.discoveredDevices.get(peripheral.id);
       if (discoveredDevice) {
         discoveredDevice.setLastSeen();
+        this.emit("deviceDiscovered", discoveredDevice);
       } else if (workingDevice && !workingDevice.isConnected()) {
         // .. generally that should not happen since we are already connected, but just in case we missed the disconnect event let's reconnect:
         try {
