@@ -35,33 +35,33 @@ import {
 } from "multidevice-bluetooth-heart-rate-monitor";
 
 const monitor = new MultiDeviceBluetoothHeartRateMonitor();
+const discoveredDevices: Map<string, BluetoothHeartRateDevice> = new Map();
 
 monitor.on("data", (data: DeviceData) => {
-  console.log(`Heart rate for device ${data.deviceId}: ${data.heartRate}`);
+  console.log(
+    `Heart rate for device ${data.deviceId}: ${JSON.stringify(data)}`
+  );
 });
 
-monitor.on("deviceConnected", (device: BluetoothHeartRateDevice) => {
-  console.log(`Device connected: ${device.getDeviceInfo().deviceId}`);
-});
-
-monitor.on("deviceDisconnected", (device: BluetoothHeartRateDevice) => {
-  console.log(`Device disconnected: ${device.getDeviceInfo().deviceId}`);
-});
-
-monitor.on("deviceDiscovered", (device: BluetoothHeartRateDevice) => {
+monitor.on("deviceDiscovered", async (device: BluetoothHeartRateDevice) => {
+  if (discoveredDevices.has(device.getDeviceInfo().deviceId)) {
+    return;
+  }
+  discoveredDevices.set(device.getDeviceInfo().deviceId, device);
   console.log(`Device discovered: ${device.getDeviceInfo().deviceId}`);
   try {
-    console.log("connecting to device...");
-    await monitor.connectDevice(device);
+    setTimeout(async () => {
+      console.log("connecting to device...");
+      try {
+        await monitor.connectDevice(device);
+      } catch (error) {
+        console.error(error);
+      }
+    }, 10000);
   } catch (error) {
     console.error(error);
   }
 });
-
-monitor.on("adapterStateChange", (state: string) => {
-  console.log(`Bluetooth adapter state changed: ${state}`);
-});
-
 monitor.startScanning();
 ```
 
