@@ -232,13 +232,15 @@ class MultiDeviceBluetoothHeartRateMonitor extends EventEmitter {
       if (discoveredDevice) {
         discoveredDevice.setLastSeen();
         this.emit("deviceDiscovered", discoveredDevice);
-      } else if (workingDevice && !workingDevice.isConnected()) {
-        // .. generally that should not happen since we are already connected, but just in case we missed the disconnect event let's reconnect:
-        try {
-          await workingDevice.connect();
-        } catch (error) {
-          console.error("Error reconnecting to peripheral:", error);
-          this.emit("error", error);
+      } else if (workingDevice) {
+        if (!workingDevice.isConnected()) {
+          // .. generally that should not happen since we are already connected, but just in case we missed the disconnect event let's reconnect:
+          try {
+            await workingDevice.connect();
+          } catch (error) {
+            console.error("Error reconnecting to peripheral:", error);
+            this.emit("error", error);
+          }
         }
       } else {
         console.log(`Discovered device: ${peripheral.advertisement.localName}`);
@@ -282,6 +284,7 @@ class MultiDeviceBluetoothHeartRateMonitor extends EventEmitter {
     if (workingDevice) {
       console.log(`Device ${peripheralId} is already marked connected.`);
     } else if (pendingDevice) {
+      console.log(`Device ${peripheralId} is now connected.`);
       this.devices.set(pendingDevice.getDeviceInfo().deviceId, pendingDevice);
       this.discoveredDevices.delete(pendingDevice.getDeviceInfo().deviceId);
       pendingDevice.on("data", this.handleDeviceData.bind(this));
