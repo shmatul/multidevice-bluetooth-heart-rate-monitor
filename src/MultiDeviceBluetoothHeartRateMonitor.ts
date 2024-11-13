@@ -20,6 +20,7 @@ class MultiDeviceBluetoothHeartRateMonitor extends EventEmitter {
 
   /**
    * Creates a new MultiDeviceBluetoothHeartRateMonitor instance.
+   * @param {number} [discoveredDeviceTimeout=5000] The time in milliseconds before a discovered device is considered lost.
    */
   constructor(
     options: { discoveredDeviceTimeout?: number | null } = {
