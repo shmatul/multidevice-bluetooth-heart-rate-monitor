@@ -21,8 +21,13 @@ class MultiDeviceBluetoothHeartRateMonitor extends EventEmitter {
   /**
    * Creates a new MultiDeviceBluetoothHeartRateMonitor instance.
    */
-  constructor() {
+  constructor(
+    options: { discoveredDeviceTimeout?: number | null } = {
+      discoveredDeviceTimeout: 0,
+    }
+  ) {
     super();
+    this.DISCOVERED_DEVICE_TIMEOUT = options.discoveredDeviceTimeout || 5000;
     this.resetAdapterReadyPromise();
     this.setupNobleListeners();
     this.setupGracefulShutdown();
